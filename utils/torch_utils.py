@@ -11,8 +11,39 @@ def __select_loss():
     pass
 
 
-def __select_optimizer():
-    pass
+def __select_optimizer(name, model, lr):
+    params = model.parameters()
+    match name:
+        case 'Adadelta':
+            return torch.optim.Adadelta(params=params, lr=lr)
+        case 'Adagrad':
+            return torch.optim.Adagrad(params=params, lr=lr)
+        case 'Adam':
+            return torch.optim.Adam(params=params, lr=lr)
+        case 'AdamW':
+            return torch.optim.AdamW(params=params, lr=lr)
+        case 'SparseAdam':
+            return torch.optim.SparseAdam(params=params, lr=lr)
+        case 'Adamax':
+            return torch.optim.Adamax(params=params, lr=lr)
+        case 'ASGD':
+            return torch.optim.ASGD(params=params, lr=lr)
+        case 'LBFGS':
+            return torch.optim.LBFGS(params=params, lr=lr)
+        case 'NAdam':
+            return torch.optim.NAdam(params=params, lr=lr)
+        case 'RAdam':
+            return torch.optim.RAdam(params=params, lr=lr)
+        case 'RMSProp':
+            return torch.optim.RMSprop(params=params, lr=lr)
+        case 'Rprop':
+            return torch.optim.Rprop(params=params, lr=lr)
+        case 'SGD':
+            return torch.optim.SGD(params=params, lr=lr, nesterov=True)
+        case _:
+            raise NotImplementedError(f'Optimizer {name} not implemented.\n'
+                                      f'You can use follow optimizers: Adadelta, Adagrad, Adam, AdamW, SparseAdam,\n'
+                                      f'Adamax, ASGD, LBFGS, NAdam, RAdam, RMSProp, Rprop, SGD')
 
 
 def __select_model(repo_or_dir, model_name, weights):
@@ -79,10 +110,11 @@ def __select_model(repo_or_dir, model_name, weights):
             case 'inception_v':
                 return models.inception_v3(weights=weights)
             case _:
-                    msg = f"NameError: {model_name + model_num} is unknown model, " \
-                          "to download any model from pytorch, use repo_or_dir, model_name and  weights"
-                    logging.warning(msg)
-                    sys.exit(1)
+                msg = f"Model {model_name + model_num} not implemented, " \
+                      "to download any model from pytorch use repo_or_dir, model_name and  weights\n" \
+                      "read about the available models and weights on https://pytorch.org/vision/stable/models.html\n" \
+                      "you must specify a repository or directory such as 'pytorch/vision'"
+                raise NotImplementedError(msg)
     else:
         if weights != '':
             if weights.endswith('.pt'):
