@@ -15,6 +15,8 @@ import torch.distributed as dist
 from torch.optim import lr_scheduler
 from tqdm import tqdm
 
+from utils.torch_utils import __select_optimizer, __select_model, __select_loss
+
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
 if str(ROOT) not in sys.path:
@@ -27,13 +29,15 @@ WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 
 def train(
-        train_path: str,
-        epochs: int,
-        loss_function: str,
+        train_path: str ='',
+        epochs: int = 10,
+        loss_function: str = '',
         val_path: str = '',
         model: object = None,
         test_size: float = None,
         lr: float = None,
+        model_name: str = '',
+        repo_or_dir='',
         weights: str = '',
         optimizer: object = None,
         optimizer_name: str = 'Adam',
@@ -53,6 +57,9 @@ def train(
 ):
     device = str(device).strip().lower().replace('cuda:', '').replace('gpu', '0').replace('none', 'cpu')
 
+    if device == '':
+        device = 'cpu'
+
     cpu = device == 'cpu'
     if not cpu:
         assert torch.cuda.is_available() and torch.cuda.device_count() >= len(device.replace(',', '')), \
@@ -69,12 +76,24 @@ def train(
             p = torch.cuda.get_device_properties(i)
             msg += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / (1 << 20):.0f}MiB)\n"  # bytes to MB
         device = 'cuda:0'
+        logging.info(msg)
 
-    logging.info(msg)
+    assert (repo_or_dir != '' and model_name != '') or (model_name != '' and weights) or model is not None, \
+        "There is no model and weights, pass an instance of the model or " \
+        "specify model_name, weights and optionally repo_or_dir"
+
+    if model_name != '' and model is None:
+        model = __select_model(repo_or_dir, model_name, weights)
+    else:
+        assert model_name == '' and model is not None, \
+            "Pass only model_name or an instance of the model"
+
+    assert optimizer_name != '' or optimizer is not None, "Pass only optimizer_name or an instance of the optimizer"
+
+    if optimizer_name != '':
+        optimizer = __select_optimizer(optimizer_name, model, lr)
 
     # if RANK == {-1, 0}:
-
-
     torch.cuda.empty_cache()
     return
 
@@ -109,7 +128,5 @@ def train(
 #     pass
 
 
-# if __name__ == '__main__':
-#     # opt = parse_opt()
-#     # main(opt)
-#     train()
+if __name__ == '__main__':
+    train(model_name='rnet18', weights='ResNet18_Weights.IMAGENET1K_V1')
