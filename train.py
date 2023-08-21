@@ -1,11 +1,17 @@
 import argparse
 import os
+import logging
 from pathlib import Path
 import random
 import sys
 
 import numpy as np
+from sklearn.model_selection import train_test_split
+
 import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+import torch.distributed as dist
 from torch.optim import lr_scheduler
 from tqdm import tqdm
 
@@ -15,10 +21,15 @@ if str(ROOT) not in sys.path:
     sys.path.append(str(ROOT))
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))
 
+LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))
+RANK = int(os.getenv('RANK', -1))
+WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
+
 
 def train(
         train_path: str,
         epochs: int,
+        loss_function: str,
         val_path: str = '',
         model: object = None,
         test_size: float = None,
@@ -26,7 +37,7 @@ def train(
         weights: str = '',
         optimizer: object = None,
         optimizer_name: str = 'Adam',
-        device: str = '',
+        device: str = 'cpu',
         batch_size: str = 64,
         plot_loss: bool = True,
         workers: int = 8,
@@ -37,12 +48,35 @@ def train(
         freeze: int = None,
         project_path: str = ROOT / 'runs/train',
         name: str = 'exp',
-        image_size: int = 224
+        image_size: int = 224,
+        seed: int = 0
 ):
+    device = str(device).strip().lower().replace('cuda:', '').replace('gpu', '0').replace('none', 'cpu')
+
+    cpu = device == 'cpu'
+    if device:
+        assert torch.cuda.is_available() and torch.cuda.device_count() >= len(device.replace(',', '')), \
+            f"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)"
+
+    msg = ''
+    if not cpu and torch.cuda.is_available():
+        devices = range(torch.cuda.device_count())
+        n = len(devices)
+        if n > 1 and batch_size > 0:
+            assert batch_size % n == 0, f'batch-size {batch_size} not multiple of GPU count {n}'
+        space = ' ' * (len(msg) + 1)
+        for i, d in enumerate(devices):
+            p = torch.cuda.get_device_properties(i)
+            msg += f"{'' if i == 0 else space}CUDA:{d} ({p.name}, {p.total_memory / (1 << 20):.0f}MiB)\n"  # bytes to MB
+        device = 'cuda:0'
+
+    logging.info(msg)
+
+    # if RANK == {-1, 0}:
+
 
     torch.cuda.empty_cache()
     return
-
 
 # def parse_opt():
 #     parser = argparse.ArgumentParser()
@@ -75,7 +109,7 @@ def train(
 #     pass
 
 
-if __name__ == '__main__':
-    # opt = parse_opt()
-    # main(opt)
-    train()
+# if __name__ == '__main__':
+#     # opt = parse_opt()
+#     # main(opt)
+#     train()
