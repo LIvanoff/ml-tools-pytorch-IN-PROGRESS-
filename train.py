@@ -54,9 +54,9 @@ def train(
     device = str(device).strip().lower().replace('cuda:', '').replace('gpu', '0').replace('none', 'cpu')
 
     cpu = device == 'cpu'
-    if device:
+    if not cpu:
         assert torch.cuda.is_available() and torch.cuda.device_count() >= len(device.replace(',', '')), \
-            f"Invalid CUDA '--device {device}' requested, use '--device cpu' or pass valid CUDA device(s)"
+            f"Invalid CUDA '--device {device}' requested, use device='cpu' or pass valid CUDA device(s)"
 
     msg = ''
     if not cpu and torch.cuda.is_available():
