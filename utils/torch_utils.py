@@ -2,13 +2,25 @@ import re
 import logging
 import sys
 
+from loss_function import RMSELoss
+
 import torch
 import torch.nn as nn
 from torchvision import models
 
 
-def __select_loss():
-    pass
+def __select_loss(name):
+    name = name.lower()
+    if name == 'mae' or name == 'l1loss' or name == 'maeloss':
+        return nn.L1Loss()
+    elif name == 'mse' or name == 'l2loss' or name == 'mseloss':
+        return nn.MSELoss()
+    elif name == 'crossentropy' or name == 'logloss' or name == 'crossentropyloss':
+        return nn.CrossEntropyLoss()
+    elif name == 'bce' or name == 'bceloss' or name == 'binarycrossentropy':
+        return nn.BCELoss()
+    else:
+        raise NotImplementedError(f'Loss {name} not implemented.\n')
 
 
 def __select_optimizer(name, model, lr):
