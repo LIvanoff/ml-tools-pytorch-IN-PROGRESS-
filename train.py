@@ -93,6 +93,9 @@ def train(
     if optimizer_name != '':
         optimizer = __select_optimizer(optimizer_name, model, lr)
 
+    assert loss_function != '', "The name of the loss function is missing, define the loss function"
+    criterion = __select_loss(loss_function)
+
     # if RANK == {-1, 0}:
     torch.cuda.empty_cache()
     return
@@ -129,4 +132,4 @@ def train(
 
 
 if __name__ == '__main__':
-    train(model_name='rnet18', weights='ResNet18_Weights.IMAGENET1K_V1')
+    train(model_name='resnet18', weights='ResNet18_Weights.IMAGENET1K_V1.pt')
