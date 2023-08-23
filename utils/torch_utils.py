@@ -2,7 +2,7 @@ import re
 import logging
 import sys
 
-from loss_function import RMSELoss
+from utils.loss_function import RMSELoss
 
 import torch
 import torch.nn as nn
@@ -11,47 +11,74 @@ from torchvision import models
 
 def __select_loss(name):
     name = name.lower()
-    if name == 'mae' or name == 'l1loss' or name == 'maeloss':
+    if name == 'mae' or 'l1loss' or 'maeloss':
         return nn.L1Loss()
-    elif name == 'mse' or name == 'l2loss' or name == 'mseloss':
+    elif name == 'mse' or 'l2loss' or 'mseloss':
         return nn.MSELoss()
-    elif name == 'crossentropy' or name == 'logloss' or name == 'crossentropyloss':
+    elif name == 'crossentropy' or 'logloss' or 'crossentropyloss':
         return nn.CrossEntropyLoss()
-    elif name == 'bce' or name == 'bceloss' or name == 'binarycrossentropy':
+    elif name == 'bce' or 'bceloss' or 'binarycrossentropy':
         return nn.BCELoss()
+    elif name == 'rmse' or 'rmseloss':
+        return RMSELoss()
     else:
-        raise NotImplementedError(f'Loss {name} not implemented.\n')
+        raise NotImplementedError(f'Loss {name} not implemented')
 
 
 def __select_optimizer(name, model, lr):
     params = model.parameters()
     match name:
         case 'Adadelta':
+            if lr in None:
+                lr = 1.0
             return torch.optim.Adadelta(params=params, lr=lr)
         case 'Adagrad':
+            if lr in None:
+                lr = 0.01
             return torch.optim.Adagrad(params=params, lr=lr)
         case 'Adam':
+            if lr in None:
+                lr = 1e-3
             return torch.optim.Adam(params=params, lr=lr)
         case 'AdamW':
+            if lr in None:
+                lr = 1e-3
             return torch.optim.AdamW(params=params, lr=lr)
         case 'SparseAdam':
+            if lr in None:
+                lr = 1e-3
             return torch.optim.SparseAdam(params=params, lr=lr)
         case 'Adamax':
+            if lr in None:
+                lr = 2e-3
             return torch.optim.Adamax(params=params, lr=lr)
         case 'ASGD':
+            if lr in None:
+                lr = 0.01
             return torch.optim.ASGD(params=params, lr=lr)
         case 'LBFGS':
+            if lr in None:
+                lr = 1
             return torch.optim.LBFGS(params=params, lr=lr)
         case 'NAdam':
+            if lr in None:
+                lr = 2e-3
             return torch.optim.NAdam(params=params, lr=lr)
         case 'RAdam':
+            if lr in None:
+                lr = 1e-3
             return torch.optim.RAdam(params=params, lr=lr)
         case 'RMSProp':
+            if lr in None:
+                lr = 0.01
             return torch.optim.RMSprop(params=params, lr=lr)
         case 'Rprop':
+            if lr in None:
+                lr = 0.01
             return torch.optim.Rprop(params=params, lr=lr)
         case 'SGD':
-            return torch.optim.SGD(params=params, lr=lr, nesterov=True)
+            assert lr is not None, "Missing learning rate, define lr value"
+            return torch.optim.SGD(params=params, lr=lr)
         case _:
             raise NotImplementedError(f'Optimizer {name} not implemented.\n'
                                       f'You can use follow optimizers: Adadelta, Adagrad, Adam, AdamW, SparseAdam,\n'
@@ -59,6 +86,8 @@ def __select_optimizer(name, model, lr):
 
 
 def __select_model(repo_or_dir, model_name, weights):
+    if weights.endswith('.pt'):
+        weights = weights.replace('.pt', '')
     if repo_or_dir == '':
         res = re.findall(r'(\w+?)(\d+)', model_name)[0]
         model_name, model_num = res[0], res[1]
@@ -129,8 +158,6 @@ def __select_model(repo_or_dir, model_name, weights):
                 raise NotImplementedError(msg)
     else:
         if weights != '':
-            if weights.endswith('.pt'):
-                weights = weights.lower().replace('.pt', '')
             return torch.hub.load(repo_or_dir=repo_or_dir, model=model_name, weights=weights)
         else:
             return torch.hub.load(repo_or_dir=repo_or_dir, model=model_name)
