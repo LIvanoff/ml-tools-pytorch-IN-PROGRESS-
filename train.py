@@ -29,9 +29,9 @@ WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 
 def train(
-        train_path: str ='',
-        epochs: int = 10,
-        loss_function: str = '',
+        train_path: str = '',
+        epochs: int = None,
+        loss_function: object = None,
         val_path: str = '',
         model: object = None,
         test_size: float = None,
@@ -41,8 +41,10 @@ def train(
         weights: str = '',
         optimizer: object = None,
         optimizer_name: str = 'Adam',
+        loss_name: str = '',
         device: str = 'cpu',
         batch_size: str = 64,
+        sep: int = None,
         plot_loss: bool = True,
         workers: int = 8,
         augment: bool = False,
@@ -88,48 +90,34 @@ def train(
         assert model_name == '' and model is not None, \
             "Pass only model_name or an instance of the model"
 
-    assert optimizer_name != '' or optimizer is not None, "Pass only optimizer_name or an instance of the optimizer"
+    # assert optimizer_name != '' or optimizer is not None, "Pass only optimizer_name or an instance of the optimizer"
 
-    if optimizer_name != '':
+    if optimizer is None:
         optimizer = __select_optimizer(optimizer_name, model, lr)
 
-    assert loss_function != '', "The name of the loss function is missing, define the loss function"
-    criterion = __select_loss(loss_function)
+    if freeze is not None:
+        for i, child in enumerate(model.named_parameters()):
+            if i <= freeze:
+                for param in child.parameters():
+                    param.requires_grad = False
+
+    assert loss_function is not None or loss_name != '', "The name of the loss function and object is missing," \
+                                                         "define the name or pass instance of " \
+                                                         "the loss function"
+    if loss_function is None:
+        criterion = __select_loss(loss_name)
+
+    if device != 'cpu' and RANK == -1 and torch.cuda.device_count() > 1:
+        model = torch.nn.DataParallel(model)
+
+
+
 
     # if RANK == {-1, 0}:
+    
     torch.cuda.empty_cache()
-    return
-
-# def parse_opt():
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('model', type=str,  help='model path')
-#     parser.add_argument('data-train', type=str, help='train dataset path')
-#     parser.add_argument('epochs', type=int, help='number of epochs')
-#     parser.add_argument('--data-val', type=str, help='val dataset path')
-#     parser.add_argument('--test-size', type=float, default=0.2, help='percentage of the test dataset from the '
-#                                                                      'training sample')
-#     parser.add_argument('--optimizer', type=str, default='Adam', help='type of optimizer')
-#     parser.add_argument('--lr', type=str, help='learning rate value')
-#     parser.add_argument('--plot-loss', action='store_true', help='output of the loss plot')
-#     parser.add_argument('--weights', type=str, help='weight path')
-#     parser.add_argument('--batch-size', type=int, default=64, help='batch size')
-#     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=224, help='inference size (pixels)')
-#     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-#     parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
-#     parser.add_argument('--augment', action='store_false', help='augmented inference')
-#     parser.add_argument('--save-xlsx', action='store_true', help='save results to *.xlsx')
-#     parser.add_argument('--save-csv', action='store_false', help='save results to *.csv')
-#     parser.add_argument('--save-plot', action='store_true', help='save metric plots')
-#     parser.add_argument('--freeze', type=int, help='number of frozen layers')
-#     parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
-#     parser.add_argument('--name', default='exp', help='save to project/name')
-#     opt = parser.parse_args()
-#     return opt
-#
-#
-# def main(opt):
-#     pass
+    return model
 
 
 if __name__ == '__main__':
-    train(model_name='resnet18', weights='ResNet18_Weights.IMAGENET1K_V1.pt')
+    train(model_name='resnet18', weights='ResNet18_Weights.IMAGENET1K_V1.pt', optimizer_name='SGD', loss_name='mse')
