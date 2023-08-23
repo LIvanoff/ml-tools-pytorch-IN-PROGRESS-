@@ -6,6 +6,7 @@ import random
 import sys
 
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
 import torch
@@ -112,8 +113,18 @@ def train(
         model = torch.nn.DataParallel(model)
 
     if dataset is None:
-        dataset_path = __check_dataset(dataset_path, ROOT, sep)
-        print(dataset_path)
+        dataset_path, filetype = __check_dataset(dataset_path, ROOT, sep)
+    else:
+        pass
+    # if filetype == '.xlsx' or '.csv':
+    #     data = pd.read_excel(dataset_path[0])
+    #     print(data.values)
+    #     X = data[:sep].values
+    #     y = data[sep:].values
+    #     print(X, y)
+
+
+
 
 
     # if RANK == {-1, 0}:
@@ -131,5 +142,5 @@ if __name__ == '__main__':
         optimizer_name='SGD',
         loss_name='mse',
         sep=5,
-        dataset_path='train.csv'
+        dataset_path='dataset.xlsx'
         )
