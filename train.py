@@ -11,11 +11,11 @@ from sklearn.model_selection import train_test_split
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
-import torch.distributed as dist
 from torch.optim import lr_scheduler
 from tqdm import tqdm
 
 from utils.torch_utils import __select_optimizer, __select_model, __select_loss
+from utils.data_preprocessing import __check_dataset
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
@@ -29,10 +29,10 @@ WORLD_SIZE = int(os.getenv('WORLD_SIZE', 1))
 
 
 def train(
-        train_path: str = '',
-        epochs: int = None,
+        epochs: int,
+        dataset_path: str,
         loss_function: object = None,
-        val_path: str = '',
+        dataset: tuple = None,
         model: object = None,
         test_size: float = None,
         lr: float = None,
@@ -56,7 +56,7 @@ def train(
         name: str = 'exp',
         image_size: int = 224,
         seed: int = 0
-):
+    ):
     device = str(device).strip().lower().replace('cuda:', '').replace('gpu', '0').replace('none', 'cpu')
 
     if device == '':
@@ -91,10 +91,11 @@ def train(
             "Pass only model_name or an instance of the model"
 
     # assert optimizer_name != '' or optimizer is not None, "Pass only optimizer_name or an instance of the optimizer"
+    import time
 
+    tic = time.time()
     if optimizer is None:
         optimizer = __select_optimizer(optimizer_name, model, lr)
-
     if freeze is not None:
         for i, child in enumerate(model.named_parameters()):
             if i <= freeze:
@@ -110,14 +111,25 @@ def train(
     if device != 'cpu' and RANK == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
 
-
+    if dataset is None:
+        dataset_path = __check_dataset(dataset_path, ROOT, sep)
+        print(dataset_path)
 
 
     # if RANK == {-1, 0}:
-    
+
     torch.cuda.empty_cache()
     return model
 
 
 if __name__ == '__main__':
-    train(model_name='resnet18', weights='ResNet18_Weights.IMAGENET1K_V1.pt', optimizer_name='SGD', loss_name='mse')
+    train(
+        epochs=10,
+        lr=0.01,
+        model_name='resnet18',
+        weights='ResNet18_Weights.IMAGENET1K_V1.pt',
+        optimizer_name='SGD',
+        loss_name='mse',
+        sep=5,
+        dataset_path='train.csv'
+        )
