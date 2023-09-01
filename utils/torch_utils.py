@@ -9,7 +9,7 @@ import torch.nn as nn
 from torchvision import models
 
 
-def __select_loss(name):
+def select_loss(name):
     name = name.lower()
     if name == 'mae' or 'l1loss' or 'maeloss':
         return nn.L1Loss()
@@ -25,7 +25,7 @@ def __select_loss(name):
         raise NotImplementedError(f'Loss {name} not implemented')
 
 
-def __select_optimizer(name, model, lr):
+def select_optimizer(name, model, lr):
     params = model.parameters()
     match name:
         case 'Adadelta':
@@ -85,7 +85,7 @@ def __select_optimizer(name, model, lr):
                                       f'Adamax, ASGD, LBFGS, NAdam, RAdam, RMSProp, Rprop, SGD')
 
 
-def __select_model(repo_or_dir, model_name, weights):
+def select_model(repo_or_dir, model_name, weights):
     if weights.endswith('.pt'):
         weights = weights.replace('.pt', '')
     if repo_or_dir == '':
