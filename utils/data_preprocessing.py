@@ -3,15 +3,16 @@ import pathlib
 from pathlib import Path
 
 
-def __check_dataset(dataset_path, root, sep):
+def check_dataset(dataset_path, root, sep):
     datasets_folder = Path(os.path.join(root, 'datasets'))
     msg = ''
 
     if not datasets_folder.exists():
         msg += "No such directory: 'datasets'"
         raise FileNotFoundError(msg)
+        # os.makedirs(datasets_folder)
 
-    num_files = __count_files(datasets_folder)
+    num_files = count_files(datasets_folder)
 
     if num_files == 0:
         msg += "No files and folders in the datasets folder: add file or folder(s) in the datasets"
@@ -28,7 +29,7 @@ def __check_dataset(dataset_path, root, sep):
         raise FileNotFoundError(msg)
 
     if dataset_path.is_file():
-        if '.xlsx' or '.csv' in filename:
+        if '.xlsx' or '.csv' or '.txt' in filename:
             if sep is None:
                 msg += "Missing 1 required positional argument: 'sep'"
                 raise TypeError(msg)
@@ -55,7 +56,7 @@ def __check_dataset(dataset_path, root, sep):
     #     print(i)
 
 
-def __count_files(dataset_folder):
+def count_files(dataset_folder):
     folder_array = os.scandir(dataset_folder)
     num_files = 0
     for path in folder_array:
