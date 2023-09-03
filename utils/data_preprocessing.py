@@ -1,6 +1,14 @@
 import os
 import pathlib
+import pickle
+import numpy as np
+from PIL import Image
 from pathlib import Path
+
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
+from sklearn.preprocessing import LabelEncoder
 
 
 def check_dataset(dataset_path, root, sep):
@@ -63,3 +71,102 @@ def count_files(dataset_folder):
         if path.is_file():
             num_files += 1
     return num_files
+
+
+def create_dataset(X_data,
+                   y_data,
+                   permutate,
+                   plot_loss,
+                   workers,
+                   augment,
+                   filetype,
+                   image_size):
+    return X_data
+
+
+class CVDataset(Dataset):
+    def __init__(self, files, mode, RESCALE_SIZE, augment):
+        super().__init__()
+        self.files = sorted(files)
+        self.mode = mode
+        self.RESCALE_SIZE = RESCALE_SIZE
+        self.augment = augment
+
+        self.len_ = len(self.files)
+
+        self.label_encoder = LabelEncoder()
+
+        if self.mode != 'test':
+            self.labels = [path.parent.name for path in self.files]
+            self.label_encoder.fit(self.labels)
+
+            with open('label_encoder.pkl', 'wb') as le_dump_file:
+                pickle.dump(self.label_encoder, le_dump_file)
+
+    def __len__(self):
+        return self.len_
+
+    def load_sample(self, file):
+        image = Image.open(file)
+        image.load()
+        return image
+
+    def __getitem__(self, index):
+        # для преобразования изображений в тензоры PyTorch и нормализации входа
+        if self.mode == 'train':
+            if not self.augment:
+                transform = transforms.Compose([
+                    transforms.ToPILImage(),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+            else:
+                transform = transforms.Compose([
+                    transforms.ToPILImage(),
+                    transforms.Resize(size=(self.RESCALE_SIZE, self.RESCALE_SIZE)),
+                    transforms.RandomRotation(degrees=25),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+        else:
+            transform = transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.Resize(size=(224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+        x = self.load_sample(self.files[index])
+        x = self._prepare_sample(x)
+        # x = np.array(x / 255, dtype='float32')
+        x = transform(x)
+        if self.mode == 'test':
+            return x
+        else:
+            label = self.labels[index]
+            label_id = self.label_encoder.transform([label])
+            y = label_id.item()
+            return x, y
+
+    def _prepare_sample(self, image):
+        w, h = image.size
+        max_wh = np.max([w, h])
+        hp = int((max_wh - w) / 2)
+        vp = int((max_wh - h) / 2)
+        padding = (hp, vp, hp, vp)
+
+        image = transforms.functional.pad(image, padding, 0, 'constant')
+        # image = image.resize((RESCALE_SIZE, RESCALE_SIZE))
+        return np.array(image)
+
+
+class TableDataset(Dataset):
+    def __init__(self, X, y):
+        self.X = torch.Tensor(X)
+        self.y = torch.from_numpy(y).float()
+
+    def __len__(self):
+        return self.X.shape[0]
+
+    def __getitem__(self, index):
+        return (self.X[index], self.y[index])
