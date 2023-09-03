@@ -1,4 +1,3 @@
-import argparse
 import os
 import logging
 from pathlib import Path
@@ -11,12 +10,11 @@ from sklearn.model_selection import train_test_split
 
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
 from torch.optim import lr_scheduler
 from tqdm import tqdm
 
 from utils.torch_utils import select_optimizer, select_model, select_loss
-from utils.data_preprocessing import check_dataset
+from utils.data_preprocessing import check_dataset, create_dataset
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
@@ -56,7 +54,7 @@ def train(
         name: str = 'exp',
         image_size: int = 224,
         seed: int = 0
-    ):
+):
     device = str(device).strip().lower().replace('cuda:', '').replace('gpu', '0').replace('none', 'cpu')
 
     if device == '':
@@ -117,7 +115,7 @@ def train(
         elif filetype == '.csv' or '.txt':
             data = pd.read_csv(dataset_path[0])
         data = data.values
-        X, y = data[0:, :sep].values, data[0:, sep:]
+        X, y = data[0:, :sep], data[0:, sep:]
     else:
         X, y = dataset[0], dataset[1]
 
@@ -130,24 +128,79 @@ def train(
     '''
 
     if labels is None:
-        X_train, X_val, y_train, y_val  = train_test_split(X, y, test_size=test_size, random_state=seed)
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, random_state=seed)
     else:
         X_train, X_val = train_test_split(X, test_size=test_size, random_state=seed, stratify=labels)
 
-    # if RANK == {-1, 0}:
+    X_train = create_dataset(X_train,
+                             y_train,
+                             permutate,
+                             workers,
+                             batch_size,
+                             augment,
+                             filetype,
+                             image_size,
+                             mode='train')
+    if test_size is not None:
+        X_val = create_dataset(X_val,
+                               y_val,
+                               permutate,
+                               workers,
+                               batch_size,
+                               augment,
+                               filetype,
+                               image_size,
+                               mode='val')
+
+    model.to(device)
+    history = []
+    log_template = "\nEpoch {ep:03d} train_loss: {t_loss:0.4f} " # \
+                   # "val_loss: {v_loss:0.4f} " \
+                   # "train_metric {t_met:o.4f} val_metric {v_met:0.4f}"
+
+    with tqdm(desc="epoch", total=epochs) as pbar_outer:
+        for epoch in range(epochs):
+            model.train()
+            running_loss = 0.0
+            running_corrects = 0
+            processed_data = 0
+            for X_batch, Y_batch in X_train:
+                optimizer.zero_grad()
+
+                X_batch = X_batch.to(device)
+                Y_batch = Y_batch.to(device)
+
+                preds = model(X_batch)
+                loss = criterion(preds, Y_batch)
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item() * X_batch.size(0)
+                # running_corrects += torch.sum(preds == labels.data)
+                processed_data += X_batch.size(0)
+
+            train_loss = running_loss / processed_data
+            history.append(train_loss)
+
+            pbar_outer.update(1)
+            # tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss))
 
     torch.cuda.empty_cache()
-    return model
+    return model, history
 
 
 if __name__ == '__main__':
+    from SimpleNN import Net
+    model = Net()
     train(
-        epochs=10,
+        epochs=100,
         lr=0.01,
-        model_name='resnet18',
-        weights='ResNet18_Weights.IMAGENET1K_V1.pt',
+        model=model,
+        # model_name='resnet18',
+        # weights='ResNet18_Weights.IMAGENET1K_V1.pt',
         optimizer_name='SGD',
-        loss_name='mse',
+        loss_name='crossentropyloss',
         sep=4,
+        device='cuda:0',
         dataset_path='dataset.xlsx'
-        )
+    )
