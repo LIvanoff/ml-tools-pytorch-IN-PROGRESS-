@@ -85,16 +85,16 @@ def create_dataset(X_data,
                    ):
 
     if y_data is not None and filetype:
-        X_data = TableDataset(X_data, y_data)
+        Xy_data = TableDataset(X_data, y_data)
     else:
-        X_data = CVDataset(X_data, mode, RESCALE_SIZE=image_size, augment=augment)
+        Xy_data = CVDataset(X_data, mode, RESCALE_SIZE=image_size, augment=augment)
 
     if mode == 'train':
-        X_data = DataLoader(X_data, batch_size=batch_size, shuffle=permutate)
+        Xy_data = DataLoader(Xy_data, batch_size=batch_size, shuffle=permutate)
     else:
-        X_data = DataLoader(X_data, batch_size=batch_size, shuffle=False)
+        Xy_data = DataLoader(Xy_data, batch_size=batch_size, shuffle=False)
 
-    return X_data
+    return Xy_data
 
 
 class CVDataset(Dataset):
