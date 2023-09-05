@@ -76,11 +76,24 @@ def count_files(dataset_folder):
 def create_dataset(X_data,
                    y_data,
                    permutate,
-                   plot_loss,
                    workers,
+                   batch_size,
                    augment,
                    filetype,
-                   image_size):
+                   image_size,
+                   mode
+                   ):
+
+    if y_data is not None and filetype:
+        X_data = TableDataset(X_data, y_data)
+    else:
+        X_data = CVDataset(X_data, mode, RESCALE_SIZE=image_size, augment=augment)
+
+    if mode == 'train':
+        X_data = DataLoader(X_data, batch_size=batch_size, shuffle=permutate)
+    else:
+        X_data = DataLoader(X_data, batch_size=batch_size, shuffle=False)
+
     return X_data
 
 
