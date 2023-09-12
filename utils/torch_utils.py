@@ -11,15 +11,15 @@ from torchvision import models
 
 def select_loss(name):
     name = name.lower()
-    if name == 'mae' or 'l1loss' or 'maeloss':
+    if name == 'mae' or name == 'l1loss' or name == 'maeloss':
         return nn.L1Loss()
-    elif name == 'mse' or 'l2loss' or 'mseloss':
+    elif name == 'mse' or name == 'l2loss' or name == 'mseloss':
         return nn.MSELoss()
-    elif name == 'crossentropy' or 'logloss' or 'crossentropyloss':
+    elif name == 'crossentropy' or name == 'logloss' or name == 'crossentropyloss':
         return nn.CrossEntropyLoss()
-    elif name == 'bce' or 'bceloss' or 'binarycrossentropy':
+    elif name == 'bce' or name == 'bceloss' or name == 'binarycrossentropy':
         return nn.BCELoss()
-    elif name == 'rmse' or 'rmseloss':
+    elif name == 'rmse' or name == 'rmseloss':
         return RMSELoss()
     else:
         raise NotImplementedError(f'Loss {name} not implemented')
