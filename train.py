@@ -6,6 +6,7 @@ import sys
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 
 import torch
@@ -15,6 +16,7 @@ from tqdm import tqdm
 
 from utils.torch_utils import select_optimizer, select_model, select_loss
 from utils.data_preprocessing import check_dataset, create_dataset
+from utils.plot import plot_loss
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
@@ -45,7 +47,7 @@ def train(
         batch_size: str = 64,
         sep: int = None,
         permutate: bool = True,
-        plot_loss: bool = True,
+        plot: bool = False,
         workers: int = 8,
         augment: bool = False,
         save_plot: bool = True,
@@ -132,7 +134,7 @@ def train(
     else:
         X_train, X_val = train_test_split(X, test_size=test_size, random_state=seed, stratify=labels)
 
-    X_train = create_dataset(X_train,
+    Xy_train = create_dataset(X_train,
                              y_train,
                              permutate,
                              workers,
@@ -142,7 +144,7 @@ def train(
                              image_size,
                              mode='train')
     if test_size is not None:
-        X_val = create_dataset(X_val,
+        Xy_val = create_dataset(X_val,
                                y_val,
                                permutate,
                                workers,
@@ -153,18 +155,21 @@ def train(
                                mode='val')
 
     model.to(device)
-    history = []
+    train_history = []
+    val_history = []
     log_template = "\nEpoch {ep:03d} train_loss: {t_loss:0.4f} " # \
                    # "val_loss: {v_loss:0.4f} " \
                    # "train_metric {t_met:o.4f} val_metric {v_met:0.4f}"
 
+    plt.ion()
     with tqdm(desc="epoch", total=epochs) as pbar_outer:
         for epoch in range(epochs):
             model.train()
             running_loss = 0.0
             running_corrects = 0
             processed_data = 0
-            for X_batch, Y_batch in X_train:
+            processed_size = 0
+            for X_batch, Y_batch in Xy_train:
                 optimizer.zero_grad()
 
                 X_batch = X_batch.to(device)
@@ -180,13 +185,31 @@ def train(
                 processed_data += X_batch.size(0)
 
             train_loss = running_loss / processed_data
-            history.append(train_loss)
+            train_history.append(train_loss)
+            if test_size is not None:
+                with torch.no_grad():
+                    model.eval()
+                    for X_val, Y_val in Xy_val:
+                        X_val = X_val.to(device)
+                        Y_val = Y_val.to(device)
+                        preds = model(X_val)
+                        loss = criterion(preds, Y_val)
+
+                    running_loss += loss.item() * X_val.size(0)
+                    processed_size += X_val.size(0)
+
+                val_loss = running_loss / processed_size
+                val_history.append(val_loss)
+
+            if plot:
+                plot_loss(train_history, val_history, epochs)
 
             pbar_outer.update(1)
             # tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss))
-
+    plt.ioff()
+    plt.show()
     torch.cuda.empty_cache()
-    return model, history
+    return model, train_history
 
 
 if __name__ == '__main__':
@@ -202,5 +225,7 @@ if __name__ == '__main__':
         loss_name='crossentropyloss',
         sep=4,
         device='cuda:0',
-        dataset_path='dataset.xlsx'
+        dataset_path='dataset.xlsx',
+        plot=True,
+        test_size=0.2
     )
