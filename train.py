@@ -45,6 +45,7 @@ def train(
         loss_name: str = '',
         device: str = 'cpu',
         batch_size: str = 64,
+        task: str = None,
         sep: int = None,
         permutate: bool = True,
         plot: bool = False,
@@ -52,6 +53,7 @@ def train(
         augment: bool = False,
         save_plot: bool = True,
         freeze: int = None,
+        scheduler: object = None,
         project_path: str = ROOT / 'runs/train',
         name: str = 'exp',
         image_size: int = 224,
@@ -104,7 +106,9 @@ def train(
                                                          "define the name or pass instance of " \
                                                          "the loss function"
     if loss_function is None:
-        criterion = select_loss(loss_name)
+        criterion, loss_name = select_loss(loss_name)
+    else:
+        loss_name = 'Loss'
 
     if device != 'cpu' and RANK == -1 and torch.cuda.device_count() > 1:
         model = torch.nn.DataParallel(model)
@@ -183,6 +187,8 @@ def train(
                 running_loss += loss.item() * X_batch.size(0)
                 # running_corrects += torch.sum(preds == labels.data)
                 processed_data += X_batch.size(0)
+            if scheduler is not None:
+                scheduler.step()
 
             train_loss = running_loss / processed_data
             train_history.append(train_loss)
@@ -201,11 +207,11 @@ def train(
                 val_loss = running_loss / processed_size
                 val_history.append(val_loss)
 
-            if plot:
-                plot_loss(train_history, val_history, epochs)
+            if plot and epochs % 10 == 0:
+                plot_loss(train_history, val_history, loss_name)
 
             pbar_outer.update(1)
-            # tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss))
+            tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss))
     plt.ioff()
     plt.show()
     torch.cuda.empty_cache()
@@ -216,15 +222,15 @@ if __name__ == '__main__':
     from SimpleNN import Net
     model = Net()
     train(
-        epochs=100,
+        epochs=10,
         lr=0.01,
         model=model,
         # model_name='resnet18',
         # weights='ResNet18_Weights.IMAGENET1K_V1.pt',
         optimizer_name='SGD',
-        loss_name='crossentropyloss',
-        sep=4,
-        device='cuda:0',
+        loss_name='crossentropy',
+        sep=13,
+        device='cpu',
         dataset_path='dataset.xlsx',
         plot=True,
         test_size=0.2
