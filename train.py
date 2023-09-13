@@ -44,7 +44,7 @@ def train(
         optimizer_name: str = 'Adam',
         loss_name: str = '',
         device: str = 'cpu',
-        batch_size: str = 64,
+        batch_size: int = 64,
         task: str = None,
         sep: int = None,
         permutate: bool = True,
@@ -93,6 +93,10 @@ def train(
             "Pass only model_name or an instance of the model"
 
     # assert optimizer_name != '' or optimizer is not None, "Pass only optimizer_name or an instance of the optimizer"
+
+    if scheduler is not None and optimizer is None:
+        msg = "Missing an instance of the optimizer"
+        raise NotImplementedError(msg)
 
     if optimizer is None:
         optimizer = select_optimizer(optimizer_name, model, lr)
