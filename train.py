@@ -16,7 +16,8 @@ from tqdm import tqdm
 
 from utils.torch_utils import select_optimizer, select_model, select_loss
 from utils.data_preprocessing import check_dataset, create_dataset
-from utils.plot import plot_loss
+from utils.plot import plot_loss, save_figure
+from utils.metrics import *
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
@@ -46,12 +47,13 @@ def train(
         device: str = 'cpu',
         batch_size: int = 64,
         task: str = None,
+        metric: str = None,
         sep: int = None,
         permutate: bool = True,
         plot: bool = False,
         workers: int = 8,
         augment: bool = False,
-        save_plot: bool = True,
+        save_plot: bool = False,
         freeze: int = None,
         scheduler: object = None,
         project_path: str = ROOT / 'runs/train',
@@ -142,6 +144,17 @@ def train(
     else:
         X_train, X_val = train_test_split(X, test_size=test_size, random_state=seed, stratify=labels)
 
+    if labels is None:
+        num_classes = np.unique(y_train)
+    else:
+        num_classes = np.unique(labels)
+
+    if metric is not None:
+        metric = select_metric(metric=metric, num_classes=num_classes)
+    elif task is not None:
+        metric = select_metric(task=task, num_classes=num_classes)
+        save_plot = True
+
     Xy_train = create_dataset(X_train,
                              y_train,
                              permutate,
@@ -165,16 +178,16 @@ def train(
     model.to(device)
     train_history = []
     val_history = []
-    log_template = "\nEpoch {ep:03d} train_loss: {t_loss:0.4f} " # \
-                   # "val_loss: {v_loss:0.4f} " \
-                   # "train_metric {t_met:o.4f} val_metric {v_met:0.4f}"
+    log_template = "\nEpoch {ep:03d} train_loss: {t_loss:0.4f} " \
+                   "train_metric {t_met:0.4f} "
+                   # "val_metric {v_met:0.4f}" # "val_loss: {v_loss:0.4f} " \
 
     plt.ion()
     with tqdm(desc="epoch", total=epochs) as pbar_outer:
         for epoch in range(epochs):
             model.train()
-            running_loss = 0.0
-            running_corrects = 0
+            loss_value = 0.0
+            metric_value = 0
             processed_data = 0
             processed_size = 0
             for X_batch, Y_batch in Xy_train:
@@ -188,13 +201,13 @@ def train(
                 loss.backward()
                 optimizer.step()
 
-                running_loss += loss.item() * X_batch.size(0)
-                # running_corrects += torch.sum(preds == labels.data)
+                loss_value += loss.item() * X_batch.size(0)
+                metric_value += metric(preds, Y_batch)  # torch.sum(preds == labels.data)
                 processed_data += X_batch.size(0)
             if scheduler is not None:
                 scheduler.step()
 
-            train_loss = running_loss / processed_data
+            train_loss = loss_value / processed_data
             train_history.append(train_loss)
             if test_size is not None:
                 with torch.no_grad():
@@ -205,19 +218,23 @@ def train(
                         preds = model(X_val)
                         loss = criterion(preds, Y_val)
 
-                    running_loss += loss.item() * X_val.size(0)
+                    loss_value += loss.item() * X_val.size(0)
                     processed_size += X_val.size(0)
 
-                val_loss = running_loss / processed_size
+                val_loss = loss_value / processed_size
                 val_history.append(val_loss)
 
             if plot and epochs % 10 == 0:
                 plot_loss(train_history, val_history, loss_name)
 
             pbar_outer.update(1)
-            tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss))
+            tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss, t_met=metric_value))
     plt.ioff()
     plt.show()
+
+    if save_plot is True:
+        save_figure()
+
     torch.cuda.empty_cache()
     return model, train_history
 
@@ -235,6 +252,7 @@ if __name__ == '__main__':
         loss_name='crossentropy',
         sep=13,
         device='cpu',
+        metric='accuracy',
         dataset_path='dataset.xlsx',
         plot=True,
         test_size=0.2
