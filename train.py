@@ -182,6 +182,7 @@ def train(
                    "train_metric {t_met:0.4f} "
                    # "val_metric {v_met:0.4f}" # "val_loss: {v_loss:0.4f} " \
 
+    best_acc = -1
     plt.ion()
     with tqdm(desc="epoch", total=epochs) as pbar_outer:
         for epoch in range(epochs):
@@ -229,6 +230,21 @@ def train(
 
             pbar_outer.update(1)
             tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss, t_met=metric_value))
+
+            # current_acc = test(test_dataloader, model, device, task)
+            #
+            #
+            # # Save Model Checkpoint Regularly
+            # if (epoch + 1) % checkpoint_every == 0:
+            #     print("checkpoint saved at epoch {}".format(epoch))
+            #     save_checkpoint(epoch, model, checkpoint_dir, best=False)
+            #
+            # # Save Best Model Checkpoint
+            # if (current_acc >= best_acc):
+            #     best_acc = current_acc
+            #     print("best model saved at epoch {}".format(epoch))
+            #     save_checkpoint(epoch, model, checkpoint_dir, best=True)
+
     plt.ioff()
     plt.show()
 
