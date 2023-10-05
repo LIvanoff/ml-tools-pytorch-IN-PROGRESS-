@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 import random
 import sys
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -155,6 +156,10 @@ def train(
     elif task is not None:
         metric = select_metric(task=task, num_classes=num_classes)
         save_plot = True
+
+    if batch_size is None:
+        warnings.warn("batch_size not specified, this can lead to a problem with network training, specify the size "
+                      "of the butch")
 
     Xy_train = create_dataset(X_train,
                              permutate,
