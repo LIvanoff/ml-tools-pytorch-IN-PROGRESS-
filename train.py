@@ -18,6 +18,7 @@ from utils.torch_utils import select_optimizer, select_model, select_loss
 from utils.data_preprocessing import check_dataset, create_dataset
 from utils.plot import plot_loss, save_figure
 from utils.metrics import *
+from utils.utils import *
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]
@@ -45,7 +46,7 @@ def train(
         optimizer_name: str = 'Adam',
         loss_name: str = '',
         device: str = 'cpu',
-        batch_size: int = 64,
+        batch_size: int = None,
         task: str = None,
         metric: str = None,
         sep: int = None,
@@ -145,9 +146,9 @@ def train(
         X_train, X_val = train_test_split(X, test_size=test_size, random_state=seed, stratify=labels)
 
     if labels is None:
-        num_classes = np.unique(y_train)
+        num_classes = len(np.unique(y_train))
     else:
-        num_classes = np.unique(labels)
+        num_classes = len(np.unique(labels))
 
     if metric is not None:
         metric = select_metric(metric=metric, num_classes=num_classes)
@@ -156,23 +157,23 @@ def train(
         save_plot = True
 
     Xy_train = create_dataset(X_train,
-                             y_train,
                              permutate,
                              workers,
                              batch_size,
                              augment,
                              filetype,
                              image_size,
+                             y_data=y_train,
                              mode='train')
     if test_size is not None:
         Xy_val = create_dataset(X_val,
-                               y_val,
                                permutate,
                                workers,
                                batch_size,
                                augment,
                                filetype,
                                image_size,
+                               y_data=y_val,
                                mode='val')
 
     model.to(device)
@@ -194,8 +195,9 @@ def train(
             for X_batch, Y_batch in Xy_train:
                 optimizer.zero_grad()
 
-                X_batch = X_batch.to(device)
-                Y_batch = Y_batch.to(device)
+                # X_batch = X_batch.to(device)
+                # Y_batch = Y_batch.to(device)
+                X_batch, Y_batch = to_device(device, X_batch, Y_batch)
 
                 preds = model(X_batch)
                 loss = criterion(preds, Y_batch)
@@ -214,8 +216,9 @@ def train(
                 with torch.no_grad():
                     model.eval()
                     for X_val, Y_val in Xy_val:
-                        X_val = X_val.to(device)
-                        Y_val = Y_val.to(device)
+                        # X_val = X_val.to(device)
+                        # Y_val = Y_val.to(device)
+                        X_val, Y_val = to_device(device, X_val, Y_val)
                         preds = model(X_val)
                         loss = criterion(preds, Y_val)
 
@@ -266,7 +269,7 @@ if __name__ == '__main__':
         # weights='ResNet18_Weights.IMAGENET1K_V1.pt',
         optimizer_name='SGD',
         loss_name='crossentropy',
-        sep=13,
+        sep=4,
         device='cpu',
         metric='accuracy',
         dataset_path='dataset.xlsx',
