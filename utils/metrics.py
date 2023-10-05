@@ -6,13 +6,13 @@ from torchmetrics.detection import IntersectionOverUnion, MeanAveragePrecision
 from torchmetrics.regression import R2Score
 
 
-def select_metric(metric: str = None, task: str = None):
+def select_metric(metric: str = None, task: str = None, num_classes: int = None):
     if metric is not None:
         metric = metric.lower()
         if metric == 'iou':
             return IntersectionOverUnion()
         elif metric == 'accuracy':
-            return Accuracy(task="multiclass", num_classes=2)
+            return Accuracy(task="multiclass", num_classes=num_classes)
         elif metric == 'rmse':
             return RMSELoss()
         elif metric == 'map':
@@ -29,4 +29,3 @@ def select_metric(metric: str = None, task: str = None):
             return IntersectionOverUnion()
         elif task == 'detection':
             return MeanAveragePrecision()
-
