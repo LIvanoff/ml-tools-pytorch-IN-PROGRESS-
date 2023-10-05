@@ -74,16 +74,15 @@ def count_files(dataset_folder):
 
 
 def create_dataset(X_data,
-                   y_data,
-                   permutate,
-                   workers,
-                   batch_size,
-                   augment,
-                   filetype,
-                   image_size,
-                   mode
+                   permutate: bool,
+                   workers: int,
+                   batch_size: int,
+                   augment: bool,
+                   filetype: str,
+                   image_size: int,
+                   mode: str,
+                   y_data=None
                    ):
-
     if y_data is not None and filetype:
         Xy_data = TableDataset(X_data, y_data)
     else:
