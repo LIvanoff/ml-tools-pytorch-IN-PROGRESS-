@@ -32,6 +32,7 @@ def select_loss(name):
 
 def select_optimizer(name, model, lr):
     params = model.parameters()
+    msg = ''
     match name:
         case 'Adadelta':
             if lr in None:
