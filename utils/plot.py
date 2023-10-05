@@ -13,3 +13,7 @@ def plot_loss(train, val, loss_name):
     plt.grid(alpha=0.4)
     plt.draw()
     plt.gcf().canvas.flush_events()
+
+
+def save_figure():
+    return
