@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_loss(train, val, loss_name):
+def plot_loss(train: list, val: list, loss_name: str):
     plt.clf()
     plt.plot(np.arange(len(train)), train, 'r', alpha=0.8, label='train')  # c='#7B68EE'
     if len(val) != 0:
