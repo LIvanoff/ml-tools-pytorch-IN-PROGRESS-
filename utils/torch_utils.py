@@ -35,51 +35,51 @@ def select_optimizer(name, model, lr):
     msg = ''
     match name:
         case 'Adadelta':
-            if lr in None:
+            if lr is None:
                 lr = 1.0
             return torch.optim.Adadelta(params=params, lr=lr)
         case 'Adagrad':
-            if lr in None:
+            if lr is None:
                 lr = 0.01
             return torch.optim.Adagrad(params=params, lr=lr)
         case 'Adam':
-            if lr in None:
+            if lr is None:
                 lr = 1e-3
             return torch.optim.Adam(params=params, lr=lr)
         case 'AdamW':
-            if lr in None:
+            if lr is None:
                 lr = 1e-3
             return torch.optim.AdamW(params=params, lr=lr)
         case 'SparseAdam':
-            if lr in None:
+            if lr is None:
                 lr = 1e-3
             return torch.optim.SparseAdam(params=params, lr=lr)
         case 'Adamax':
-            if lr in None:
+            if lr is None:
                 lr = 2e-3
             return torch.optim.Adamax(params=params, lr=lr)
         case 'ASGD':
-            if lr in None:
+            if lr is None:
                 lr = 0.01
             return torch.optim.ASGD(params=params, lr=lr)
         case 'LBFGS':
-            if lr in None:
+            if lr is None:
                 lr = 1
             return torch.optim.LBFGS(params=params, lr=lr)
         case 'NAdam':
-            if lr in None:
+            if lr is None:
                 lr = 2e-3
             return torch.optim.NAdam(params=params, lr=lr)
         case 'RAdam':
-            if lr in None:
+            if lr is None:
                 lr = 1e-3
             return torch.optim.RAdam(params=params, lr=lr)
         case 'RMSProp':
-            if lr in None:
+            if lr is None:
                 lr = 0.01
             return torch.optim.RMSprop(params=params, lr=lr)
         case 'Rprop':
-            if lr in None:
+            if lr is None:
                 lr = 0.01
             return torch.optim.Rprop(params=params, lr=lr)
         case 'SGD':
