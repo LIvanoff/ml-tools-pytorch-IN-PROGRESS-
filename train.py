@@ -142,7 +142,7 @@ def train(
     '''
 
     if labels is None:
-        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, random_state=seed)
+        X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=test_size, random_state=seed,stratify=y)
     else:
         X_train, X_val = train_test_split(X, test_size=test_size, random_state=seed, stratify=labels)
 
@@ -159,7 +159,7 @@ def train(
 
     if batch_size is None:
         warnings.warn("batch_size not specified, this can lead to a problem with network training, specify the size "
-                      "of the butch")
+                      "of the batch")
 
     Xy_train = create_dataset(X_train,
                              permutate,
@@ -182,11 +182,18 @@ def train(
                                mode='val')
 
     model.to(device)
-    train_history = []
-    val_history = []
+    history = {'train_loss': [],
+               'val_loss': [],
+               'train_met': [],
+               'val_met': []
+               }
+    # train_history = []
+    # val_history = []
+    # metric_train_history = []
+    # metric_val_history = []
     log_template = "\nEpoch {ep:03d} train_loss: {t_loss:0.4f} " \
-                   "train_metric {t_met:0.4f} "
-                   # "val_metric {v_met:0.4f}" # "val_loss: {v_loss:0.4f} " \
+                   "train_metric {t_met:0.4f}   val_loss: {v_loss:0.4f} " \
+                   "val_metric {v_met:0.4f}"
 
     best_acc = -1
     plt.ion()
@@ -194,14 +201,11 @@ def train(
         for epoch in range(epochs):
             model.train()
             loss_value = 0.0
-            metric_value = 0
+            metric_value = 0.0
             processed_data = 0
             processed_size = 0
             for X_batch, Y_batch in Xy_train:
                 optimizer.zero_grad()
-
-                # X_batch = X_batch.to(device)
-                # Y_batch = Y_batch.to(device)
                 X_batch, Y_batch = to_device(device, X_batch, Y_batch)
 
                 preds = model(X_batch)
@@ -210,34 +214,50 @@ def train(
                 optimizer.step()
 
                 loss_value += loss.item() * X_batch.size(0)
-                metric_value += metric(preds, Y_batch)  # torch.sum(preds == labels.data)
+                metric_value += metric(preds, Y_batch).item()  # metric_value += torch.sum(preds == Y_batch)
                 processed_data += X_batch.size(0)
             if scheduler is not None:
                 scheduler.step()
 
-            train_loss = loss_value / processed_data
-            train_history.append(train_loss)
+            history['train_loss'].append(loss_value / processed_data)  # train_loss = loss_value / processed_data
+            history['train_met'].append(metric_value / len(Xy_train))  # metric_train = metric_value / len(Xy_train)
+            # train_loss = loss_value / processed_data
+            # metric_train = metric_value / len(Xy_train)
+
+            # train_history.append(train_loss)
+            # metric_train_history.append(metric_value)
+
+            loss_value = 0.0
+            metric_value = 0.0
             if test_size is not None:
                 with torch.no_grad():
                     model.eval()
                     for X_val, Y_val in Xy_val:
-                        # X_val = X_val.to(device)
-                        # Y_val = Y_val.to(device)
                         X_val, Y_val = to_device(device, X_val, Y_val)
                         preds = model(X_val)
                         loss = criterion(preds, Y_val)
+                        metric_value += metric(preds, Y_val).item()
 
                     loss_value += loss.item() * X_val.size(0)
+                    # metric_val = metric_value / len(Xy_val)
+                    history['val_met'].append(metric_value / len(Xy_val))
                     processed_size += X_val.size(0)
 
-                val_loss = loss_value / processed_size
-                val_history.append(val_loss)
+                history['val_loss'].append(loss_value / processed_size)  # val_loss = loss_value / processed_size
+
+                # val_history.append(val_loss)
+                # metric_val_history.append(metric_value)
 
             if plot and epochs % 10 == 0:
-                plot_loss(train_history, val_history, loss_name)
+                # plot_loss(train_history, val_history, loss_name)
+                plot_loss(history['train_loss'], history['val_loss'], loss_name)
 
             pbar_outer.update(1)
-            tqdm.write(log_template.format(ep=epoch + 1, t_loss=train_loss, t_met=metric_value))
+            tqdm.write(log_template.format(ep=epoch + 1,
+                                           t_loss=history['train_loss'][epoch],
+                                           t_met=history['train_met'][epoch],
+                                           v_loss=history['val_loss'][epoch],
+                                           v_met=history['val_met'][epoch]))
 
             # current_acc = test(test_dataloader, model, device, task)
             #
@@ -260,24 +280,25 @@ def train(
         save_figure()
 
     torch.cuda.empty_cache()
-    return model, train_history
+    return model, history
 
 
 if __name__ == '__main__':
     from SimpleNN import Net
     model = Net()
-    train(
-        epochs=10,
-        lr=0.01,
+    model, metric = train(
+        epochs=50,
+        lr=0.001,
         model=model,
         # model_name='resnet18',
         # weights='ResNet18_Weights.IMAGENET1K_V1.pt',
-        optimizer_name='SGD',
+        optimizer_name='Adam',
         loss_name='crossentropy',
-        sep=4,
+        sep=13,
         device='cpu',
         metric='accuracy',
         dataset_path='dataset.xlsx',
         plot=True,
+        batch_size=10000,
         test_size=0.2
     )
