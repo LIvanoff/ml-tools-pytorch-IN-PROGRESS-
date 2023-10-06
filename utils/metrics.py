@@ -12,7 +12,10 @@ def select_metric(metric: str = None, task: str = None, num_classes: int = None)
         if metric == 'iou':
             return IntersectionOverUnion()
         elif metric == 'accuracy':
-            return Accuracy(task="multiclass", num_classes=num_classes)
+            if num_classes >= 3:
+                return Accuracy(task="multiclass", num_classes=num_classes)
+            else:
+                return BinaryAccuracy()
         elif metric == 'rmse':
             return RMSELoss()
         elif metric == 'map':
